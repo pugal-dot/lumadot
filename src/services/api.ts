@@ -1,0 +1,140 @@
+import axios from 'axios';
+
+// ─── PUT YOUR KEYS HERE ───────────────────────────────────────────────
+const NEWS_API_KEY  = '343549e16e69414f8d2286a48e4a9bf2';   // newsapi.org → free account
+const GROQ_API_KEY  = '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';      // console.groq.com → free account
+// ─────────────────────────────────────────────────────────────────────
+
+export interface Article {
+  id:        string;
+  source:    string;
+  headline:  string;
+  summary:   string;
+  url:       string;
+  time:      string;
+  imageUrl?: string;
+  raw?:      string;
+}
+
+// Fetch headlines from NewsAPI
+export async function fetchNews(category: string): Promise<Article[]> {
+  try {
+    const res = await axios.get('https://newsapi.org/v2/top-headlines', {
+      params: {
+        category,
+        language: 'en',
+        pageSize: 10,
+        apiKey: NEWS_API_KEY,
+      },
+    });
+
+    const articles = res.data.articles.filter(
+      (a: any) => a.title && a.title !== '[Removed]'
+    );
+
+    return articles.map((a: any, i: number) => ({
+      id:       String(i),
+      source:   a.source?.name?.toUpperCase() ?? 'UNKNOWN',
+      headline: a.title,
+      summary:  a.description ?? '',
+      url:      a.url,
+      time:     timeAgo(a.publishedAt),
+      imageUrl: a.urlToImage ?? undefined,
+      raw:      a.description ?? a.title,
+    }));
+  } catch (e: any) {
+    console.error('NewsAPI error:', e?.message);
+    return FALLBACK_NEWS;
+  }
+}
+
+// Summarise a single article with Groq (Llama 3.3)
+export async function summariseWithGroq(text: string): Promise<string> {
+  try {
+    const res = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 80,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a concise financial news editor. Summarise the article in exactly 2 sentences. Be direct, no fluff.',
+          },
+          { role: 'user', content: text },
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return res.data.choices[0].message.content.trim();
+  } catch (e: any) {
+    console.error('Groq error:', e?.message);
+    return text.slice(0, 140) + '…';
+  }
+}
+
+// Batch summarise — summarises up to 5 articles
+export async function fetchAndSummarise(category: string): Promise<Article[]> {
+  const articles = await fetchNews(category);
+  const top5 = articles.slice(0, 5);
+
+  const summarised = await Promise.all(
+    top5.map(async (a) => ({
+      ...a,
+      summary: a.raw ? await summariseWithGroq(a.raw) : a.summary,
+    }))
+  );
+
+  return summarised;
+}
+
+// Time helper
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60)  return `${m}m ago`;
+  if (m < 1440) return `${Math.floor(m / 60)}h ago`;
+  return `${Math.floor(m / 1440)}d ago`;
+}
+
+// Fallback data when API keys not set
+export const FALLBACK_NEWS: Article[] = [
+  {
+    id: '1',
+    source: 'REUTERS • BLOOMBERG',
+    headline: 'Global semiconductor rally pushes indices to record highs',
+    summary: 'AI chip demand continues to outpace supply chain projections, triggering a 4.2% surge across key Asian tech corridors.',
+    url: '',
+    time: '12m ago',
+  },
+  {
+    id: '2',
+    source: 'THE ECONOMIST',
+    headline: 'Central bank shifts policy on digital asset liquidity',
+    summary: 'New regulatory frameworks suggest a move toward institutional adoption of decentralized ledgers for cross-border settlements.',
+    url: '',
+    time: '2h ago',
+  },
+  {
+    id: '3',
+    source: 'WSJ • EXCLUSIVE',
+    headline: 'Green energy mergers hit 10-year high as subsidy deadlines approach',
+    summary: 'Private equity firms are pivoting into wind and solar infrastructure as national grid modernization projects receive federal backing.',
+    url: '',
+    time: '4h ago',
+  },
+  {
+    id: '4',
+    source: 'FINANCIAL TIMES',
+    headline: 'Venture capital slows as interest rates find new plateau',
+    summary: 'Series B and C rounds face stricter valuation metrics as investors shift focus from growth-at-all-costs to unit economics.',
+    url: '',
+    time: 'Yesterday',
+  },
+];
