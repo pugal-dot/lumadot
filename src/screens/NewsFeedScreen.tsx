@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Animated, StatusBar, RefreshControl, ActivityIndicator,
+  Animated, StatusBar, RefreshControl, ActivityIndicator, ImageBackground
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Logo from '../components/Logo';
 import NewsCard from '../components/NewsCard';
-import { C, F, FIELDS, CATEGORY_MAP } from '../constants/theme';
-import { fetchAndSummarise, Article, FALLBACK_NEWS } from '../services/api';
-import { addBookmark, removeBookmark, isBookmarked, getBookmarks } from '../services/bookmarks';
+import { C, F, CATEGORY_MAP, IMAGE_MAP } from '../constants/theme';
+import { fetchAndSummarise, Article, FALLBACK_NEWS, fetchMarketSentiment, generatePersonalBriefing } from '../services/api';
+import { addBookmark, removeBookmark, isBookmarked } from '../services/bookmarks';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // Live pulsing dot
 function LiveDot() {
@@ -37,7 +38,7 @@ interface Props {
   selectedFields: string[];
   activeField:    string;
   onChangeField:  (f: string) => void;
-  navigation:     any;
+  navigation:     NativeStackNavigationProp<any>;
 }
 
 export default function NewsFeedScreen({ selectedFields, activeField, onChangeField, navigation }: Props) {
@@ -46,6 +47,10 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
   const [bookmarked,  setBookmarked]  = useState<Record<string, boolean>>({});
+  
+  // AI States
+  const [briefing, setBriefing] = useState<string[]>([]);
+  const [sentiment, setSentiment] = useState('calculating AI sentiment...');
 
   const load = useCallback(async (field: string) => {
     setLoading(true);
@@ -57,9 +62,15 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
     for (const a of data) { bm[a.id] = await isBookmarked(a.id); }
     setBookmarked(bm);
     setLoading(false);
-  }, []);
 
-  useEffect(() => { load(activeField); }, [activeField]);
+    // Call AI functions in parallel without blocking user interaction
+    setBriefing([]); 
+    setSentiment('calculating AI sentiment...');
+    fetchMarketSentiment(data).then(setSentiment);
+    generatePersonalBriefing(selectedFields, data).then(setBriefing);
+  }, [selectedFields]);
+
+  useEffect(() => { load(activeField); }, [activeField, load]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -76,31 +87,48 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
   const fieldLabel = activeField.charAt(0).toUpperCase() + activeField.slice(1);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.container]}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <ImageBackground
+        source={IMAGE_MAP[activeField] || require('../../assets/1.jpeg')}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+      </ImageBackground>
 
       {/* Top bar */}
-      <View style={styles.topBar}>
-        <Logo size={12} pulse />
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
+          <Logo size={12} pulse />
+          <Text style={styles.brandText}>LUMADOT</Text>
+        </View>
         <View style={styles.fieldBadge}>
           <LiveDot />
-          <Text style={styles.fieldLabel}>{fieldLabel.toUpperCase()}</Text>
+          <Text style={styles.fieldLabel}>{fieldLabel.toLowerCase()}</Text>
         </View>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Ionicons name="notifications-outline" size={20} color={C.text} />
-        </TouchableOpacity>
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('SearchTopic')}>
+            <Ionicons name="search" size={22} color={C.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn}>
+            <Ionicons name="notifications-outline" size={22} color={C.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Field tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabsContent}>
-        {selectedFields.map(f => (
-          <TouchableOpacity key={f} onPress={() => onChangeField(f)} style={[styles.tab, activeField === f && styles.tabActive]}>
-            <Text style={[styles.tabText, activeField === f && styles.tabTextActive]}>
-              {f.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.tabsWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabsContent}>
+          {selectedFields.map(f => (
+            <TouchableOpacity key={f} onPress={() => onChangeField(f)} style={[styles.tab, activeField === f && styles.tabActive]}>
+              <Text style={[styles.tabText, activeField === f && styles.tabTextActive]}>
+                {f.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Feed */}
       {loading ? (
@@ -118,10 +146,27 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
         >
           {/* Header */}
           <View style={styles.feedHeader}>
-            <Text style={styles.feedTitle}>{fieldLabel.toLowerCase()}{'\n'}insights</Text>
+            <View>
+              <Text style={styles.feedTitle}>market{'\n'}insights</Text>
+            </View>
             <Text style={styles.vol}>VOL. 24.08</Text>
           </View>
           <View style={styles.divider} />
+
+          {/* AI Briefing Banner */}
+          {briefing.length > 0 ? (
+             <View style={styles.briefingBox}>
+               <Text style={styles.briefingLabel}>AI PERSONAL BRIEFING</Text>
+               {briefing.map((b, i) => (
+                 <Text key={i} style={styles.briefingBullet}>• {b}</Text>
+               ))}
+             </View>
+          ) : (
+             <View style={styles.briefingBox}>
+               <ActivityIndicator size="small" color={C.accent} style={{ alignSelf: 'flex-start' }} />
+               <Text style={styles.briefingBullet}>Generating AI briefing...</Text>
+             </View>
+          )}
 
           {/* Cards */}
           <View style={styles.cards}>
@@ -131,6 +176,7 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
                 article={a}
                 bookmarked={!!bookmarked[a.id]}
                 onBookmark={() => toggleBookmark(a)}
+                onExplain={() => navigation.navigate('ArticleChat', { article: a })}
                 dimmed={i === articles.length - 1}
                 delay={i * 100}
               />
@@ -141,7 +187,7 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
           <View style={styles.widget}>
             <View>
               <Text style={styles.widgetLabel}>MARKET SIGNAL</Text>
-              <Text style={styles.widgetValue}>low stable • 12.4</Text>
+              <Text style={styles.widgetValue}>{sentiment}</Text>
             </View>
             <View style={styles.bars}>
               {[3, 5, 4, 7, 5, 3, 6].map((h, i) => (
@@ -149,24 +195,40 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
               ))}
             </View>
           </View>
-          <View style={{ height: 100 }} />
+          <View style={{ height: 160 }} />
         </ScrollView>
       )}
+
+      {/* Footer Back Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.8}>
+          <View style={styles.cta}>
+            <Text style={styles.ctaText}>←  CHANGE FIELDS</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: C.bg },
+  container:    { flex: 1, backgroundColor: '#000' },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
   topBar: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 20, paddingBottom: 14,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  brandText: {
+    fontFamily: F.body, fontSize: 13, color: '#FFF',
+    letterSpacing: 6, textTransform: 'uppercase',
   },
   fieldBadge:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  fieldLabel:   { fontFamily: F.body, fontSize: 9, color: C.textMuted, letterSpacing: 5 },
+  fieldLabel:   { fontFamily: F.body, fontSize: 9, color: 'rgba(255,255,255,0.7)', letterSpacing: 4 },
   liveDotWrap:  { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
   liveDot: {
     width: 6, height: 6, borderRadius: 3, position: 'absolute',
@@ -179,14 +241,15 @@ const styles = StyleSheet.create({
     backgroundColor: C.accent,
   },
   iconBtn:  { padding: 4 },
-  tabs: { borderBottomWidth: 1, borderBottomColor: C.border, maxHeight: 44 },
+  tabsWrap: { backgroundColor: 'rgba(0,0,0,0.3)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
+  tabs: { maxHeight: 44 },
   tabsContent: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   tab: {
     paddingHorizontal: 14, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: 'transparent',
   },
   tabActive:     { borderBottomColor: C.text },
-  tabText:       { fontFamily: F.body, fontSize: 9, color: C.textDim, letterSpacing: 4 },
+  tabText:       { fontFamily: F.body, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 4 },
   tabTextActive: { color: C.text },
   loadingWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText:   { fontFamily: F.body, fontSize: 11, color: C.textMuted, letterSpacing: 3 },
@@ -197,21 +260,40 @@ const styles = StyleSheet.create({
   },
   feedTitle: {
     fontFamily: F.body, fontSize: 24,
-    color: C.text, letterSpacing: 5,
+    color: '#FFF', letterSpacing: 5,
     textTransform: 'uppercase', lineHeight: 34,
   },
-  vol:     { fontFamily: F.body, fontSize: 9, color: C.textDim, letterSpacing: 3 },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.10)', marginHorizontal: 20, marginBottom: 24 },
+  vol:     { fontFamily: F.body, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 3, marginBottom: 4 },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 20, marginBottom: 24 },
   cards:   { paddingHorizontal: 20, gap: 20 },
   widget: {
     marginHorizontal: 20, marginTop: 24,
-    borderWidth: 1, borderColor: C.border,
-    backgroundColor: C.cardBg,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     padding: 20, flexDirection: 'row',
     justifyContent: 'space-between', alignItems: 'center',
   },
   widgetLabel: { fontFamily: F.body, fontSize: 9, color: C.textDim, letterSpacing: 3, marginBottom: 6 },
-  widgetValue: { fontFamily: F.body, fontSize: 13, color: C.text, letterSpacing: 2 },
+  widgetValue: { fontFamily: F.body, fontSize: 13, color: '#FFF', letterSpacing: 2 },
   bars:        { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
   bar:         { width: 4, backgroundColor: C.white },
+  footer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    padding: 20, paddingBottom: 40,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  cta: {
+    backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: 18,
+    alignItems: 'center', borderRadius: 99,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  ctaText: { fontFamily: F.semibold, fontSize: 12, color: C.white, letterSpacing: 4 },
+  briefingBox: {
+    marginHorizontal: 20, marginBottom: 24, padding: 16,
+    backgroundColor: 'rgba(91,79,232,0.1)', borderWidth: 1, borderColor: C.accentDim,
+    borderRadius: 8, gap: 8,
+  },
+  briefingLabel: { fontFamily: F.semibold, fontSize: 9, color: C.accent, letterSpacing: 3 },
+  briefingBullet: { fontFamily: F.body, fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
 });

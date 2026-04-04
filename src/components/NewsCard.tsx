@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Linking } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { C, F } from '../constants/theme';
 import { Article } from '../services/api';
@@ -8,11 +9,12 @@ interface Props {
   article: Article;
   bookmarked: boolean;
   onBookmark: () => void;
+  onExplain?: () => void;
   dimmed?: boolean;
   delay?: number;
 }
 
-export default function NewsCard({ article, bookmarked, onBookmark, dimmed, delay = 0 }: Props) {
+export default function NewsCard({ article, bookmarked, onBookmark, onExplain, dimmed, delay = 0 }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(30)).current;
@@ -37,7 +39,7 @@ export default function NewsCard({ article, bookmarked, onBookmark, dimmed, dela
         onPressOut={onPressOut}
         activeOpacity={1}
       >
-        <View style={styles.card}>
+        <BlurView intensity={40} tint="dark" style={styles.card}>
           <View style={styles.accent} />
           <View style={styles.body}>
             <View style={styles.metaRow}>
@@ -47,7 +49,14 @@ export default function NewsCard({ article, bookmarked, onBookmark, dimmed, dela
             <Text style={styles.headline}>{article.headline}</Text>
             <Text style={styles.summary} numberOfLines={2}>{article.summary}</Text>
             <View style={styles.actions}>
-              <Text style={styles.readMore}>READ MORE →</Text>
+              <View style={{flexDirection: 'row', gap: 16, alignItems: 'center'}}>
+                <Text style={styles.readMore}>READ MORE →</Text>
+                {onExplain && (
+                  <TouchableOpacity onPress={onExplain}>
+                     <Text style={[styles.readMore, {color: C.accent}]}>✨ EXPLAIN</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <TouchableOpacity onPress={onBookmark} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                 <Ionicons
                   name={bookmarked ? 'bookmark' : 'bookmark-outline'}
@@ -57,7 +66,7 @@ export default function NewsCard({ article, bookmarked, onBookmark, dimmed, dela
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </BlurView>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -66,47 +75,48 @@ export default function NewsCard({ article, bookmarked, onBookmark, dimmed, dela
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    backgroundColor: C.cardBg,
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: 'rgba(255,255,255,0.1)', 
     overflow: 'hidden',
+    borderRadius: 16,
   },
   accent: {
     width: 2,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
   body: {
     flex: 1,
-    padding: 20,
-    gap: 12,
+    padding: 24,
+    gap: 16,
   },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between' },
   source: {
     fontFamily: F.body,
     fontSize: 9,
-    color: C.textMuted,
-    letterSpacing: 3,
-    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 2,
+    textTransform: 'lowercase',
   },
   time: {
     fontFamily: F.body,
     fontSize: 9,
-    color: C.textDim,
+    color: 'rgba(255,255,255,0.3)',
     letterSpacing: 2,
   },
   headline: {
     fontFamily: F.body,
-    fontSize: 16,
-    color: C.text,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    lineHeight: 24,
+    fontSize: 20,
+    color: '#FFF',
+    letterSpacing: 1,
+    textTransform: 'lowercase',
+    lineHeight: 32,
   },
   summary: {
     fontFamily: F.body,
-    fontSize: 13,
-    color: C.textMuted,
-    lineHeight: 21,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    lineHeight: 24,
   },
   actions: {
     flexDirection: 'row',

@@ -17,15 +17,23 @@ export interface Article {
 }
 
 // Fetch headlines from NewsAPI
-export async function fetchNews(category: string): Promise<Article[]> {
+export async function fetchNews(category: string, query?: string): Promise<Article[]> {
   try {
-    const res = await axios.get('https://newsapi.org/v2/top-headlines', {
-      params: {
-        category,
-        language: 'en',
-        pageSize: 10,
-        apiKey: NEWS_API_KEY,
-      },
+    const endpoint = query ? 'everything' : 'top-headlines';
+    const params: any = {
+      language: 'en',
+      pageSize: 10,
+      apiKey: NEWS_API_KEY,
+    };
+    if (query) {
+      params.q = query;
+      params.sortBy = 'publishedAt'; // Guarantee the latest news are retrieved for queries
+    } else {
+      params.category = category;
+    }
+
+    const res = await axios.get(`https://newsapi.org/v2/${endpoint}`, {
+      params,
     });
 
     const articles = res.data.articles.filter(
@@ -80,8 +88,8 @@ export async function summariseWithGroq(text: string): Promise<string> {
 }
 
 // Batch summarise — summarises up to 5 articles
-export async function fetchAndSummarise(category: string): Promise<Article[]> {
-  const articles = await fetchNews(category);
+export async function fetchAndSummarise(category: string, query?: string): Promise<Article[]> {
+  const articles = await fetchNews(category, query);
   const top5 = articles.slice(0, 5);
 
   const summarised = await Promise.all(
@@ -138,3 +146,68 @@ export const FALLBACK_NEWS: Article[] = [
     time: 'Yesterday',
   },
 ];
+
+// --- AI RAG FEATURES ---
+
+export async function chatAboutArticle(articleText: string, question: string): Promise<string> {
+  try {
+    const res = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: 'You are an AI assistant explaining news articles. Use the provided article to directly answer the user. Be concise, insightful, and helpful.' },
+          { role: 'user', content: `Context Article: ${articleText}\n\nUser Question: ${question}` }
+        ]
+      },
+      { headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' } }
+    );
+    return res.data.choices[0].message.content.trim();
+  } catch (e: any) {
+    return 'Sorry, I am currently out of tokens or unreachable. Try again later!';
+  }
+}
+
+export async function fetchMarketSentiment(articles: Article[]): Promise<string> {
+  try {
+    const headlines = articles.map(a => a.headline).join('; ');
+    const res = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 30,
+        messages: [
+          { role: 'system', content: 'Analyze the sentiment of the provided headlines. Return exactly in this format: [Bullish/Bearish/Neutral/Volatile] • [Volatility score out of 100 as integer]. Example: "Bullish • 82" or "Volatile Bearish • 45". Nothing else.' },
+          { role: 'user', content: headlines }
+        ]
+      },
+      { headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' } }
+    );
+    return res.data.choices[0].message.content.trim().replace(/['"]+/g, '');
+  } catch (e: any) {
+    return 'low stable • 12';
+  }
+}
+
+export async function generatePersonalBriefing(fields: string[], articles: Article[]): Promise<string[]> {
+  try {
+    if (articles.length === 0) return ["No data available today."];
+    const context = articles.slice(0, 8).map(a => a.headline).join(' | ');
+    const res = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 200,
+        messages: [
+          { role: 'system', content: `You are generating a daily market briefing for a user interested in: ${fields.join(', ')}. Based on the provided headlines, return EXACTLY 3 bullet points. Each bullet should be 1 short sentence. Separate bullets using double pipes "||" without any asterisks or numbering.` },
+          { role: 'user', content: context }
+        ]
+      },
+      { headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' } }
+    );
+    const text = res.data.choices[0].message.content;
+    return text.split('||').map((b: string) => b.trim().replace(/^- /,'')).filter((b: string) => b.length > 0);
+  } catch (e: any) {
+    return ["Markets are fluid today.", "Check individual fields for details.", "AI Briefing unavailable."];
+  }
+}

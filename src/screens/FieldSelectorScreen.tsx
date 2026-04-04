@@ -1,15 +1,22 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Animated, Dimensions, StatusBar,
+  ScrollView, Animated, Dimensions, StatusBar, ImageBackground
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { C, F, FIELDS } from '../constants/theme';
+import { C, F, FIELDS, IMAGE_MAP } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
+const isLaptop = width >= 768;
+
 const GAP  = 12;
 const PAD  = 20;
-const CARD = (width - PAD * 2 - GAP) / 2;
+// 4 columns on laptop, 2 columns on mobile
+const COLS = isLaptop ? 4 : 2;
+// Calculate width dynamically
+const CARD_W = (width - PAD * 2 - GAP * (COLS - 1)) / COLS;
+// Smaller height so 6 fit on mobile (3 rows), 8 fit on laptop (2 rows)
+const CARD_H = isLaptop ? 180 : 130;
 
 const ICON_MAP: Record<string, string> = {
   technology: 'laptop-outline', finance: 'bar-chart-outline',
@@ -39,28 +46,41 @@ function FieldCard({ field, selected, onToggle }: { field: typeof FIELDS[0]; sel
   const ry = rotY.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-5deg'] });
 
   return (
-    <TouchableOpacity onPress={onToggle} onPressIn={onPressIn} onPressOut={onPressOut} activeOpacity={1}>
+    <TouchableOpacity onPress={onToggle} onPressIn={onPressIn} onPressOut={onPressOut} activeOpacity={1} style={{ width: CARD_W, height: CARD_H }}>
       <Animated.View style={[
         styles.card,
         selected && styles.cardSelected,
         { transform: [{ scale }, { perspective: 800 }, { rotateX: rx }, { rotateY: ry }] },
       ]}>
-        {/* Icon */}
-        <Ionicons
-          name={ICON_MAP[field.id] as any}
-          size={26}
-          color={C.text}
-          style={{ opacity: selected ? 1 : 0.3 }}
+        <ImageBackground
+          source={{ uri: IMAGE_MAP[field.id] }}
+          style={StyleSheet.absoluteFillObject}
+          imageStyle={{ opacity: selected ? 0.8 : 0.4 }}
+          resizeMode="cover"
         />
-        {/* Bottom content */}
-        <View style={styles.cardBottom}>
-          <View style={styles.titleRow}>
-            <Text style={styles.cardTitle}>{field.label.toUpperCase()}</Text>
-            {selected && <View style={styles.selDot} />}
+        <View style={StyleSheet.absoluteFillObject}>
+          <View style={{ flex: 1, backgroundColor: selected ? 'rgba(91,79,232,0.1)' : 'rgba(0,0,0,0.5)' }} />
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }} />
+        </View>
+
+        <View style={{ flex: 1, padding: 16, justifyContent: 'space-between', zIndex: 10 }}>
+          {/* Icon */}
+          <Ionicons
+            name={ICON_MAP[field.id] as any}
+            size={22}
+            color={C.text}
+            style={{ opacity: selected ? 1 : 0.6 }}
+          />
+          {/* Bottom content */}
+          <View style={styles.cardBottom}>
+            <View style={styles.titleRow}>
+              <Text style={styles.cardTitle}>{field.label.toUpperCase()}</Text>
+              {selected && <View style={styles.selDot} />}
+            </View>
+            <Text style={[styles.cardDesc, selected && styles.cardDescSel]} numberOfLines={1}>
+              {field.desc}
+            </Text>
           </View>
-          <Text style={[styles.cardDesc, selected && styles.cardDescSel]} numberOfLines={2}>
-            {field.desc}
-          </Text>
         </View>
         {selected && <View style={styles.selOverlay} />}
       </Animated.View>
@@ -83,7 +103,7 @@ export default function FieldSelectorScreen({ onContinue }: { onContinue: (field
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -126,11 +146,11 @@ export default function FieldSelectorScreen({ onContinue }: { onContinue: (field
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  scroll:    { paddingHorizontal: PAD, paddingTop: 72 },
+  container: { flex: 1, backgroundColor: '#000' },
+  scroll:    { paddingHorizontal: PAD, paddingTop: isLaptop ? 100 : 72 },
   header:    { marginBottom: 32, gap: 8 },
   headline: {
-    fontFamily: F.serifReg, fontSize: 40,
+    fontFamily: F.serifReg, fontSize: isLaptop ? 48 : 40,
     color: C.text, letterSpacing: 1,
   },
   headlineDot: { fontFamily: F.serifItal, opacity: 0.8 },
@@ -145,41 +165,41 @@ const styles = StyleSheet.create({
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   card: {
-    width: CARD, height: CARD,
+    width: '100%', height: '100%',
     backgroundColor: C.cardBg,
-    borderWidth: 1, borderColor: C.border,
-    borderRadius: 16, padding: 16,
-    justifyContent: 'space-between', overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16, overflow: 'hidden',
   },
   cardSelected: {
-    backgroundColor: C.cardSelect,
-    borderColor: C.borderSelect,
-    shadowColor: C.white,
+    borderColor: 'rgba(255,255,255,0.4)',
+    shadowColor: C.accent,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.12, shadowRadius: 20, elevation: 8,
+    shadowOpacity: 0.4, shadowRadius: 20, elevation: 8,
   },
   cardBottom: { gap: 4 },
   titleRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardTitle: {
-    fontFamily: F.semibold, fontSize: 12,
-    color: C.text, letterSpacing: 2,
+    fontFamily: F.semibold, fontSize: 13,
+    color: '#FFF', letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  selDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.white },
+  selDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#FFF' },
   cardDesc: {
-    fontFamily: F.body, fontSize: 10,
-    color: 'rgba(255,255,255,0.22)', lineHeight: 14,
+    fontFamily: F.body, fontSize: 9,
+    color: 'rgba(255,255,255,0.6)',
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  cardDescSel: { color: 'rgba(255,255,255,0.55)' },
+  cardDescSel: { color: 'rgba(255,255,255,0.9)' },
   selOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.03)' },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 40,
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    borderTopWidth: 1, borderTopColor: C.border,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)',
   },
   cta: {
-    backgroundColor: C.white, paddingVertical: 20,
-    alignItems: 'center', borderRadius: 2,
+    backgroundColor: C.white, paddingVertical: 18,
+    alignItems: 'center', borderRadius: 99,
   },
   ctaDim:     { backgroundColor: 'rgba(255,255,255,0.15)' },
   ctaText:    { fontFamily: F.semibold, fontSize: 12, color: C.black, letterSpacing: 5 },

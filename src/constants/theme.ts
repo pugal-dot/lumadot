@@ -40,6 +40,18 @@ export const FIELDS = [
   { id: 'energy',      label: 'Energy',      icon: 'bolt',              desc: 'The grid, renewables, and fusion.',     emoji: '⚡' },
 ];
 
+// Using strictly the local images you requested!
+export const IMAGE_MAP: Record<string, any> = {
+  health: require('../../assets/health.jpeg'),
+  finance: require('../../assets/finance.jpeg'),
+  space: require('../../assets/space.jpeg'),
+  technology: require('../../assets/tech.jpeg'),
+  ai: require('../../assets/ai.jpeg'),
+  crypto: require('../../assets/crypto.jpeg'),
+  geopolitics: require('../../assets/geopolitics.jpeg'),
+  energy: require('../../assets/energy.jpeg'),
+};
+
 export const CATEGORY_MAP: Record<string, string> = {
   technology:  'technology',
   finance:     'business',

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import {
@@ -18,12 +19,13 @@ import {
 import SplashScreen       from './src/screens/SplashScreen';
 import FieldSelectorScreen from './src/screens/FieldSelectorScreen';
 import MainNavigator      from './src/navigation/MainNavigator';
+import SearchTopicScreen  from './src/screens/SearchTopicScreen';
+import ArticleChatScreen  from './src/screens/ArticleChatScreen';
 import { C } from './src/constants/theme';
 
-type Screen = 'splash' | 'fields' | 'main';
+const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [screen,          setScreen]          = useState<Screen>('splash');
   const [selectedFields,  setSelectedFields]  = useState<string[]>([]);
 
   const [fontsLoaded] = useFonts({
@@ -41,22 +43,25 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <View style={styles.root}>
-          {screen === 'splash' && (
-            <SplashScreen onStart={() => setScreen('fields')} />
-          )}
-          {screen === 'fields' && (
-            <FieldSelectorScreen
-              onContinue={(fields) => {
-                setSelectedFields(fields);
-                setScreen('main');
-              }}
-            />
-          )}
-          {screen === 'main' && (
-            <MainNavigator selectedFields={selectedFields} />
-          )}
-        </View>
+        <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
+          <Stack.Screen name="Splash" component={SplashScreen} />
+          <Stack.Screen name="Fields">
+            {props => (
+              <FieldSelectorScreen 
+                {...props}
+                onContinue={(fields) => {
+                  setSelectedFields(fields);
+                  props.navigation.navigate('Main');
+                }}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Main">
+            {props => <MainNavigator {...props} selectedFields={selectedFields} />}
+          </Stack.Screen>
+          <Stack.Screen name="SearchTopic" component={SearchTopicScreen} />
+          <Stack.Screen name="ArticleChat" component={ArticleChatScreen} />
+        </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
   );

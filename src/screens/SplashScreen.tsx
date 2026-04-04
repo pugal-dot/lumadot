@@ -1,94 +1,25 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Animated, Dimensions, StatusBar,
+  Animated, StatusBar, ImageBackground, Dimensions
 } from 'react-native';
 import { C, F } from '../constants/theme';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-const { width, height } = Dimensions.get('window');
+type Props = NativeStackScreenProps<any, 'Splash'>;
 
-const PARTICLES = Array.from({ length: 22 }, (_, i) => ({
-  id: i,
-  x: Math.random() * width,
-  y: Math.random() * height,
-  delay: Math.random() * 4000,
-  size: Math.random() > 0.7 ? 2 : 1,
-}));
-
-function Particle({ x, y, delay, size }: { x: number; y: number; delay: number; size: number }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const ty      = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(opacity, { toValue: 0.5,  duration: 2500, useNativeDriver: true }),
-          Animated.timing(ty,      { toValue: -16,  duration: 3500, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(opacity, { toValue: 0,    duration: 2500, useNativeDriver: true }),
-          Animated.timing(ty,      { toValue: 0,    duration: 3500, useNativeDriver: true }),
-        ]),
-      ])
-    ).start();
-  }, []);
-  return (
-    <Animated.View
-      style={[
-        styles.particle,
-        { left: x, top: y, width: size, height: size, borderRadius: size / 2, opacity, transform: [{ translateY: ty }] },
-      ]}
-    />
-  );
-}
-
-export default function SplashScreen({ onStart }: { onStart: () => void }) {
-  const hOpacity = useRef(new Animated.Value(0)).current;
-  const hY       = useRef(new Animated.Value(50)).current;
-  const lOpacity = useRef(new Animated.Value(0)).current;
-  const lScale   = useRef(new Animated.Value(0.88)).current;
-  const bOpacity = useRef(new Animated.Value(0)).current;
-  const bY       = useRef(new Animated.Value(24)).current;
-  const dotScale = useRef(new Animated.Value(1)).current;
-  const dotGlow  = useRef(new Animated.Value(0.5)).current;
+export default function SplashScreen({ navigation }: Props) {
   const btnScale = useRef(new Animated.Value(1)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
 
+  // Simple fade-in for content
   useEffect(() => {
-    // headline
-    Animated.parallel([
-      Animated.timing(hOpacity, { toValue: 1,  duration: 900, delay: 200, useNativeDriver: true }),
-      Animated.timing(hY,       { toValue: 0,  duration: 900, delay: 200, useNativeDriver: true }),
-    ]).start();
-    // logo
-    Animated.parallel([
-      Animated.timing(lOpacity, { toValue: 1, duration: 700, delay: 800, useNativeDriver: true }),
-      Animated.spring(lScale,   { toValue: 1, delay: 800,    useNativeDriver: true, tension: 80, friction: 8 }),
-    ]).start();
-    // dot heartbeat
-    setTimeout(() => {
-      Animated.sequence([
-        Animated.spring(dotScale, { toValue: 1.8, useNativeDriver: true, tension: 300, friction: 5 }),
-        Animated.spring(dotScale, { toValue: 1,   useNativeDriver: true, tension: 300, friction: 5 }),
-        Animated.delay(180),
-        Animated.spring(dotScale, { toValue: 1.4, useNativeDriver: true, tension: 300, friction: 5 }),
-        Animated.spring(dotScale, { toValue: 1,   useNativeDriver: true, tension: 300, friction: 5 }),
-      ]).start();
-    }, 1000);
-    // button
-    Animated.parallel([
-      Animated.timing(bOpacity, { toValue: 1, duration: 700, delay: 1400, useNativeDriver: true }),
-      Animated.timing(bY,       { toValue: 0, duration: 700, delay: 1400, useNativeDriver: true }),
-    ]).start();
-    // dot breathing loop
-    setTimeout(() => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(dotGlow, { toValue: 1,   duration: 1200, useNativeDriver: true }),
-          Animated.timing(dotGlow, { toValue: 0.3, duration: 1200, useNativeDriver: true }),
-        ])
-      ).start();
-    }, 1800);
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 1200,
+      delay: 300,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   const onPressIn  = () => Animated.spring(btnScale, { toValue: 0.96, useNativeDriver: true, tension: 300 }).start();
@@ -97,66 +28,138 @@ export default function SplashScreen({ onStart }: { onStart: () => void }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      {PARTICLES.map(p => <Particle key={p.id} {...p} />)}
+      
+      {/* Background Image with Dark Overlay */}
+      <ImageBackground
+        source={require('../../assets/1.jpeg')}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+      </ImageBackground>
 
-      <View style={styles.center}>
+      <Animated.View style={[styles.main, { opacity: contentOpacity }]}>
         {/* Headline */}
-        <Animated.Text style={[styles.headline, { opacity: hOpacity, transform: [{ translateY: hY }] }]}>
-          WHAT'S MOVING{'\n'}THE WORLD?
-        </Animated.Text>
+        <View style={styles.spaceY4}>
+          <Text style={styles.headline}>WHAT'S MOVING{'\n'}THE WORLD?</Text>
+        </View>
 
-        {/* Logo */}
-        <Animated.View style={[styles.logoRow, { opacity: lOpacity, transform: [{ scale: lScale }] }]}>
-          <Text style={styles.logoText}>luma</Text>
-          <Animated.View style={[styles.dot, { transform: [{ scale: dotScale }], opacity: dotGlow }]} />
-          <Text style={styles.logoText}>dot</Text>
-        </Animated.View>
+        {/* Brand */}
+        <View style={styles.brandRow}>
+          <Text style={styles.brandLabel}>luma</Text>
+          <Text style={styles.brandLabel}>dot</Text>
+        </View>
 
         {/* CTA */}
-        <Animated.View style={{ opacity: bOpacity, transform: [{ translateY: bY }, { scale: btnScale }] }}>
-          <TouchableOpacity onPress={onStart} onPressIn={onPressIn} onPressOut={onPressOut} activeOpacity={1}>
+        <Animated.View style={{ transform: [{ scale: btnScale }], paddingTop: 32 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Fields')}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
+            activeOpacity={1}
+          >
             <View style={styles.button}>
-              <Text style={styles.buttonText}>GET STARTED</Text>
+              <Text style={styles.buttonText}>get started</Text>
             </View>
           </TouchableOpacity>
         </Animated.View>
-      </View>
+      </Animated.View>
 
-      <Text style={styles.footer}>BY LUMA.DOT</Text>
+      <Animated.View style={[styles.footer, { opacity: contentOpacity }]}>
+        <Text style={styles.footerText}>BY LUMADOT</Text>
+      </Animated.View>
+
+      {/* Decorative Particle Effect Layer */}
+      <View style={styles.particles} pointerEvents="none">
+        <View style={[styles.particle1, { top: '25%', left: '25%' }]} />
+        <View style={[styles.particle2, { bottom: '25%', left: '50%' }]} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: C.black, alignItems: 'center', justifyContent: 'center' },
-  particle:   { position: 'absolute', backgroundColor: C.accent },
-  center:     { alignItems: 'center', gap: 48 },
+  container: { flex: 1, backgroundColor: '#000' },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  main: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    gap: 48,
+    zIndex: 10,
+  },
+  spaceY4: { gap: 16 },
   headline: {
-    fontFamily: F.semibold,
-    fontSize: 32,
-    color: C.text,
+    fontFamily: F.serifReg,
+    fontSize: 44, // equivalent to text-5xl
+    color: '#F5F5F5',
     textAlign: 'center',
-    letterSpacing: 6,
-    lineHeight: 48,
+    lineHeight: 52,
     textTransform: 'uppercase',
   },
-  logoRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  logoText: { fontFamily: F.medium, fontSize: 20, color: C.text, letterSpacing: 10, textTransform: 'uppercase' },
-  dot: {
-    width: 8, height: 8, borderRadius: 4,
-    backgroundColor: C.accent,
-    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1, shadowRadius: 8, elevation: 8,
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandLabel: {
+    fontFamily: F.medium,
+    fontSize: 24,
+    color: '#F5F5F5',
+    letterSpacing: 6, // 0.3em loosely translated
+    textTransform: 'uppercase',
   },
   button: {
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 999, paddingHorizontal: 48, paddingVertical: 20,
+    paddingHorizontal: 48,
+    paddingVertical: 20,
     backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonText: { fontFamily: F.medium, fontSize: 12, color: C.text, letterSpacing: 6 },
+  buttonText: {
+    fontFamily: F.medium,
+    fontSize: 14,
+    color: '#F5F5F5',
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+  },
   footer: {
-    position: 'absolute', bottom: 48,
-    fontFamily: F.body, fontSize: 10,
-    color: 'rgba(255,255,255,0.20)', letterSpacing: 5,
+    position: 'absolute',
+    bottom: 48,
+    width: '100%',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  footerText: {
+    fontFamily: F.medium,
+    fontSize: 10,
+    color: 'rgba(245,245,245,0.4)',
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+  },
+  particles: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.4,
+    zIndex: 0,
+  },
+  particle1: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(196,192,255,0.2)', // primary/20
+  },
+  particle2: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(200,196,216,0.2)', // on-surface-variant/20
   },
 });
