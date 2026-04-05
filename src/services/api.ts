@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// ─── PUT YOUR KEYS HERE ───────────────────────────────────────────────
-const NEWS_API_KEY  = '343549e16e69414f8d2286a48e4a9bf2';   // newsapi.org → free account
-const GROQ_API_KEY  = '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';      // console.groq.com → free account
+// ─── KEYS LOADED FROM ENVIRONMENT VARIABLES (never hardcode keys!) ────
+const NEWS_API_KEY  = process.env.EXPO_PUBLIC_NEWS_API_KEY  ?? '';
+const GROQ_API_KEY  = process.env.EXPO_PUBLIC_GROQ_API_KEY  ?? '';
 // ─────────────────────────────────────────────────────────────────────
 
 export interface Article {
