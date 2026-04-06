@@ -88,9 +88,9 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
   const fieldLabel = activeField.charAt(0).toUpperCase() + activeField.slice(1);
 
   return (
-    <View style={[styles.container, { minHeight: winH, width: winW }]}>
+    <View style={[styles.container, { height: winH, width: winW }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      {/* ✅ Fixed: explicit width/height so image fills full laptop screen */}
+      {/* Background fills full viewport */}
       <ImageBackground
         source={IMAGE_MAP[activeField]}
         style={[StyleSheet.absoluteFillObject, { width: winW, height: winH }]}
@@ -132,7 +132,7 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
         </ScrollView>
       </View>
 
-      {/* Feed */}
+      {/* Feed — flex:1 so it fills space between tabs and footer */}
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={C.accent} size="small" />
@@ -140,6 +140,7 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
         </View>
       ) : (
         <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -197,11 +198,11 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
               ))}
             </View>
           </View>
-          <View style={{ height: 160 }} />
+          <View style={{ height: 20 }} />
         </ScrollView>
       )}
 
-      {/* Footer Back Button */}
+      {/* Footer Back Button — normal flex child, always fully visible */}
       <View style={styles.footer}>
         <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.8}>
           <View style={styles.cta}>
@@ -214,7 +215,7 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
+  container:    { flex: 1, backgroundColor: '#000', overflow: 'hidden', flexDirection: 'column' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -253,6 +254,7 @@ const styles = StyleSheet.create({
   tabActive:     { borderBottomColor: C.text },
   tabText:       { fontFamily: F.body, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 4 },
   tabTextActive: { color: C.text },
+  scrollView:    { flex: 1 },
   loadingWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText:   { fontFamily: F.body, fontSize: 11, color: C.textMuted, letterSpacing: 3 },
   scroll:        { paddingBottom: 20 },
@@ -280,8 +282,7 @@ const styles = StyleSheet.create({
   bars:        { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
   bar:         { width: 4, backgroundColor: C.white },
   footer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    padding: 20, paddingBottom: 40,
+    padding: 16, paddingBottom: 20,
     backgroundColor: 'rgba(0,0,0,0.85)',
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)',
   },

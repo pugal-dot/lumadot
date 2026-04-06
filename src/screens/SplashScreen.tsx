@@ -33,7 +33,7 @@ export default function SplashScreen({ navigation }: Props) {
       {/* Background Image with Dark Overlay */}
       <ImageBackground
         source={require('../../assets/1.jpeg')}
-        style={StyleSheet.absoluteFillObject}
+        style={[StyleSheet.absoluteFillObject, { width: winW, height: winH }]}
         resizeMode="cover"
       >
         <View style={styles.overlay} />
