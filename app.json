@@ -14,13 +14,20 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.lumadot.app"
+      "bundleIdentifier": "com.lumadot.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.lumadot.app",
       "adaptiveIcon": {
         "backgroundColor": "#000000"
       }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
     },
     "plugins": [
       "expo-font",
