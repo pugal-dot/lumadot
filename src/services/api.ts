@@ -1,9 +1,13 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 
 // ─── KEYS LOADED FROM ENVIRONMENT VARIABLES (never hardcode keys!) ────
 const NEWS_API_KEY  = process.env.EXPO_PUBLIC_NEWS_API_KEY  ?? '';
 const GROQ_API_KEY  = process.env.EXPO_PUBLIC_GROQ_API_KEY  ?? '';
 // ─────────────────────────────────────────────────────────────────────
+
+// On web, use the Vercel serverless proxy to avoid CORS issues with NewsAPI
+const IS_WEB = Platform.OS === 'web';
 
 export interface Article {
   id:        string;
@@ -19,22 +23,20 @@ export interface Article {
 // Fetch headlines from NewsAPI
 export async function fetchNews(category: string, query?: string): Promise<Article[]> {
   try {
-    const endpoint = query ? 'everything' : 'top-headlines';
-    const params: any = {
-      language: 'en',
-      pageSize: 10,
-      apiKey: NEWS_API_KEY,
-    };
-    if (query) {
-      params.q = query;
-      params.sortBy = 'publishedAt'; // Guarantee the latest news are retrieved for queries
-    } else {
-      params.category = category;
-    }
+    let res;
 
-    const res = await axios.get(`https://newsapi.org/v2/${endpoint}`, {
-      params,
-    });
+    if (IS_WEB) {
+      // Use Vercel serverless proxy on web to avoid CORS
+      const params: any = query ? { q: query } : { category };
+      res = await axios.get('/api/news', { params });
+    } else {
+      // Direct API call on native (no CORS restriction)
+      const endpoint = query ? 'everything' : 'top-headlines';
+      const params: any = { language: 'en', pageSize: 10, apiKey: NEWS_API_KEY };
+      if (query) { params.q = query; params.sortBy = 'publishedAt'; }
+      else { params.category = category; }
+      res = await axios.get(`https://newsapi.org/v2/${endpoint}`, { params });
+    }
 
     const articles = res.data.articles.filter(
       (a: any) => a.title && a.title !== '[Removed]'

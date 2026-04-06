@@ -1,22 +1,13 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Animated, Dimensions, StatusBar, ImageBackground, useWindowDimensions
+  ScrollView, Animated, StatusBar, ImageBackground, useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C, F, FIELDS, IMAGE_MAP } from '../constants/theme';
 
-const { width } = Dimensions.get('window');
-const isLaptop = width >= 768;
-
-const GAP  = 12;
-const PAD  = 20;
-// 4 columns on laptop, 2 columns on mobile
-const COLS = isLaptop ? 4 : 2;
-// Calculate width dynamically
-const CARD_W = (width - PAD * 2 - GAP * (COLS - 1)) / COLS;
-// Smaller height so 6 fit on mobile (3 rows), 8 fit on laptop (2 rows)
-const CARD_H = isLaptop ? 180 : 130;
+const GAP = 12;
+const PAD = 20;
 
 const ICON_MAP: Record<string, string> = {
   technology: 'laptop-outline', finance: 'bar-chart-outline',
@@ -25,15 +16,19 @@ const ICON_MAP: Record<string, string> = {
   crypto: 'logo-bitcoin', energy: 'flash-outline',
 };
 
-function FieldCard({ field, selected, onToggle }: { field: typeof FIELDS[0]; selected: boolean; onToggle: () => void }) {
-  const scale  = useRef(new Animated.Value(1)).current;
-  const rotX   = useRef(new Animated.Value(0)).current;
-  const rotY   = useRef(new Animated.Value(0)).current;
+function FieldCard({
+  field, selected, onToggle, cardW, cardH,
+}: {
+  field: typeof FIELDS[0]; selected: boolean; onToggle: () => void; cardW: number; cardH: number;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const rotX  = useRef(new Animated.Value(0)).current;
+  const rotY  = useRef(new Animated.Value(0)).current;
 
   const onPressIn = () => Animated.parallel([
     Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, tension: 300, friction: 10 }),
-    Animated.timing(rotX,  { toValue: 1,    duration: 120,          useNativeDriver: true }),
-    Animated.timing(rotY,  { toValue: 1,    duration: 120,          useNativeDriver: true }),
+    Animated.timing(rotX,  { toValue: 1, duration: 120, useNativeDriver: true }),
+    Animated.timing(rotY,  { toValue: 1, duration: 120, useNativeDriver: true }),
   ]).start();
 
   const onPressOut = () => Animated.parallel([
@@ -42,36 +37,37 @@ function FieldCard({ field, selected, onToggle }: { field: typeof FIELDS[0]; sel
     Animated.spring(rotY,  { toValue: 0, useNativeDriver: true, tension: 200, friction: 8 }),
   ]).start();
 
-  const rx = rotX.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '5deg']  });
+  const rx = rotX.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '5deg'] });
   const ry = rotY.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-5deg'] });
 
   return (
-    <TouchableOpacity onPress={onToggle} onPressIn={onPressIn} onPressOut={onPressOut} activeOpacity={1} style={{ width: CARD_W, height: CARD_H }}>
+    <TouchableOpacity
+      onPress={onToggle} onPressIn={onPressIn} onPressOut={onPressOut}
+      activeOpacity={1} style={{ width: cardW, height: cardH }}
+    >
       <Animated.View style={[
         styles.card,
         selected && styles.cardSelected,
         { transform: [{ scale }, { perspective: 800 }, { rotateX: rx }, { rotateY: ry }] },
       ]}>
+        {/* ✅ Fixed: use require() result directly, not { uri: ... } */}
         <ImageBackground
-          source={{ uri: IMAGE_MAP[field.id] }}
+          source={IMAGE_MAP[field.id]}
           style={StyleSheet.absoluteFillObject}
-          imageStyle={{ opacity: selected ? 0.8 : 0.4 }}
+          imageStyle={{ opacity: selected ? 0.85 : 0.45 }}
           resizeMode="cover"
         />
-        <View style={StyleSheet.absoluteFillObject}>
-          <View style={{ flex: 1, backgroundColor: selected ? 'rgba(91,79,232,0.1)' : 'rgba(0,0,0,0.5)' }} />
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }} />
-        </View>
+        <View style={[StyleSheet.absoluteFillObject, {
+          backgroundColor: selected ? 'rgba(20,10,60,0.45)' : 'rgba(0,0,0,0.55)',
+        }]} />
 
         <View style={{ flex: 1, padding: 16, justifyContent: 'space-between', zIndex: 10 }}>
-          {/* Icon */}
           <Ionicons
             name={ICON_MAP[field.id] as any}
             size={22}
             color={C.text}
-            style={{ opacity: selected ? 1 : 0.6 }}
+            style={{ opacity: selected ? 1 : 0.7 }}
           />
-          {/* Bottom content */}
           <View style={styles.cardBottom}>
             <View style={styles.titleRow}>
               <Text style={styles.cardTitle}>{field.label.toUpperCase()}</Text>
@@ -93,6 +89,12 @@ export default function FieldSelectorScreen({ onContinue }: { onContinue: (field
   const { width: winW, height: winH } = useWindowDimensions();
   const btnScale = useRef(new Animated.Value(1)).current;
 
+  // ✅ Responsive: recalculate on every render based on current window width
+  const isLaptop = winW >= 768;
+  const COLS  = isLaptop ? 4 : 2;
+  const CARD_W = (winW - PAD * 2 - GAP * (COLS - 1)) / COLS;
+  const CARD_H = isLaptop ? 200 : 130;
+
   const toggle = (id: string) => setSelected(prev => {
     const n = new Set(prev);
     n.has(id) ? n.delete(id) : n.add(id);
@@ -105,10 +107,9 @@ export default function FieldSelectorScreen({ onContinue }: { onContinue: (field
   return (
     <View style={[styles.container, { minHeight: winH, width: winW }]}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: isLaptop ? 100 : 72 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.headline}>
+          <Text style={[styles.headline, { fontSize: isLaptop ? 48 : 40 }]}>
             your world<Text style={styles.headlineDot}>.</Text>
           </Text>
           <Text style={styles.sub}>PICK WHAT MOVES YOU</Text>
@@ -117,16 +118,19 @@ export default function FieldSelectorScreen({ onContinue }: { onContinue: (field
           )}
         </View>
 
-        {/* Grid */}
         <View style={styles.grid}>
           {FIELDS.map(f => (
-            <FieldCard key={f.id} field={f} selected={selected.has(f.id)} onToggle={() => toggle(f.id)} />
+            <FieldCard
+              key={f.id} field={f}
+              selected={selected.has(f.id)}
+              onToggle={() => toggle(f.id)}
+              cardW={CARD_W} cardH={CARD_H}
+            />
           ))}
         </View>
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* CTA */}
       <View style={styles.footer}>
         <Animated.View style={{ transform: [{ scale: btnScale }] }}>
           <TouchableOpacity
@@ -147,24 +151,14 @@ export default function FieldSelectorScreen({ onContinue }: { onContinue: (field
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
-  scroll:    { paddingHorizontal: PAD, paddingTop: isLaptop ? 100 : 72 },
-  header:    { marginBottom: 32, gap: 8 },
-  headline: {
-    fontFamily: F.serifReg, fontSize: isLaptop ? 48 : 40,
-    color: C.text, letterSpacing: 1,
-  },
+  container:   { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
+  scroll:      { paddingHorizontal: PAD },
+  header:      { marginBottom: 32, gap: 8 },
+  headline:    { fontFamily: F.serifReg, color: C.text, letterSpacing: 1 },
   headlineDot: { fontFamily: F.serifItal, opacity: 0.8 },
-  sub: {
-    fontFamily: F.body, fontSize: 10,
-    color: C.textMuted, letterSpacing: 6,
-  },
-  count: {
-    fontFamily: F.body, fontSize: 10,
-    color: C.accent, letterSpacing: 3,
-    marginTop: 4,
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
+  sub:         { fontFamily: F.body, fontSize: 10, color: C.textMuted, letterSpacing: 6 },
+  count:       { fontFamily: F.body, fontSize: 10, color: C.accent, letterSpacing: 3, marginTop: 4 },
+  grid:        { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   card: {
     width: '100%', height: '100%',
     backgroundColor: C.cardBg,
@@ -177,32 +171,29 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4, shadowRadius: 20, elevation: 8,
   },
-  cardBottom: { gap: 4 },
-  titleRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardBottom:  { gap: 4 },
+  titleRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardTitle: {
     fontFamily: F.semibold, fontSize: 13,
     color: '#FFF', letterSpacing: 2,
-    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+    textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  selDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#FFF' },
+  selDot:      { width: 5, height: 5, borderRadius: 3, backgroundColor: '#FFF' },
   cardDesc: {
     fontFamily: F.body, fontSize: 9,
-    color: 'rgba(255,255,255,0.6)',
-    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+    color: 'rgba(255,255,255,0.7)',
+    textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  cardDescSel: { color: 'rgba(255,255,255,0.9)' },
-  selOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.03)' },
+  cardDescSel:  { color: 'rgba(255,255,255,0.95)' },
+  selOverlay:   { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.03)' },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 40,
     backgroundColor: 'rgba(0,0,0,0.9)',
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)',
   },
-  cta: {
-    backgroundColor: C.white, paddingVertical: 18,
-    alignItems: 'center', borderRadius: 99,
-  },
-  ctaDim:     { backgroundColor: 'rgba(255,255,255,0.15)' },
-  ctaText:    { fontFamily: F.semibold, fontSize: 12, color: C.black, letterSpacing: 5 },
-  ctaTextDim: { color: 'rgba(255,255,255,0.4)' },
+  cta:         { backgroundColor: C.white, paddingVertical: 18, alignItems: 'center', borderRadius: 99 },
+  ctaDim:      { backgroundColor: 'rgba(255,255,255,0.15)' },
+  ctaText:     { fontFamily: F.semibold, fontSize: 12, color: C.black, letterSpacing: 5 },
+  ctaTextDim:  { color: 'rgba(255,255,255,0.4)' },
 });

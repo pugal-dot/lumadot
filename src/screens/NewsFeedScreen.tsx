@@ -88,11 +88,12 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
   const fieldLabel = activeField.charAt(0).toUpperCase() + activeField.slice(1);
 
   return (
-    <View style={[styles.container, { height: winH, width: winW }]}>
+    <View style={[styles.container, { minHeight: winH, width: winW }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      {/* ✅ Fixed: explicit width/height so image fills full laptop screen */}
       <ImageBackground
-        source={IMAGE_MAP[activeField] || require('../../assets/1.jpeg')}
-        style={StyleSheet.absoluteFillObject}
+        source={IMAGE_MAP[activeField]}
+        style={[StyleSheet.absoluteFillObject, { width: winW, height: winH }]}
         resizeMode="cover"
       >
         <View style={styles.overlay} />
