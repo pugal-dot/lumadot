@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Animated, Dimensions, StatusBar, ImageBackground
+  ScrollView, Animated, Dimensions, StatusBar, ImageBackground, useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C, F, FIELDS, IMAGE_MAP } from '../constants/theme';
@@ -90,6 +90,7 @@ function FieldCard({ field, selected, onToggle }: { field: typeof FIELDS[0]; sel
 
 export default function FieldSelectorScreen({ onContinue }: { onContinue: (fields: string[]) => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { width: winW, height: winH } = useWindowDimensions();
   const btnScale = useRef(new Animated.Value(1)).current;
 
   const toggle = (id: string) => setSelected(prev => {
@@ -102,7 +103,7 @@ export default function FieldSelectorScreen({ onContinue }: { onContinue: (field
   const onPressOut = () => Animated.spring(btnScale, { toValue: 1,    useNativeDriver: true, tension: 300 }).start();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { minHeight: winH, width: winW }]}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
@@ -146,7 +147,7 @@ export default function FieldSelectorScreen({ onContinue }: { onContinue: (field
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
   scroll:    { paddingHorizontal: PAD, paddingTop: isLaptop ? 100 : 72 },
   header:    { marginBottom: 32, gap: 8 },
   headline: {

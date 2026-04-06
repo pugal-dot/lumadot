@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Animated, StatusBar, ImageBackground, Dimensions
+  Animated, StatusBar, ImageBackground, useWindowDimensions
 } from 'react-native';
 import { C, F } from '../constants/theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 type Props = NativeStackScreenProps<any, 'Splash'>;
 
 export default function SplashScreen({ navigation }: Props) {
+  const { width: winW, height: winH } = useWindowDimensions();
   const btnScale = useRef(new Animated.Value(1)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
@@ -26,7 +27,7 @@ export default function SplashScreen({ navigation }: Props) {
   const onPressOut = () => Animated.spring(btnScale, { toValue: 1,    useNativeDriver: true, tension: 300 }).start();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height: winH, width: winW }]}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
       {/* Background Image with Dark Overlay */}
@@ -79,7 +80,7 @@ export default function SplashScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',

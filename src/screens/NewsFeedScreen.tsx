@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Animated, StatusBar, RefreshControl, ActivityIndicator, ImageBackground
+  Animated, StatusBar, RefreshControl, ActivityIndicator, ImageBackground, useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,6 +43,7 @@ interface Props {
 
 export default function NewsFeedScreen({ selectedFields, activeField, onChangeField, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const [articles,    setArticles]    = useState<Article[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
@@ -87,7 +88,7 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
   const fieldLabel = activeField.charAt(0).toUpperCase() + activeField.slice(1);
 
   return (
-    <View style={[styles.container]}>
+    <View style={[styles.container, { height: winH, width: winW }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <ImageBackground
         source={IMAGE_MAP[activeField] || require('../../assets/1.jpeg')}
@@ -212,7 +213,7 @@ export default function NewsFeedScreen({ selectedFields, activeField, onChangeFi
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#000' },
+  container:    { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',
